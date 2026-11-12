@@ -65,10 +65,10 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <section id="historial" class="hidden"><div class="card"><h2>Historial y Lectura</h2><p class="small">Aquí ve si el mensaje fue enviado y si el padre lo marcó como leído. Marque manualmente el estado.</p><div id="tablaHist"></div><button class="danger" onclick="borrarHistorial()">Borrar historial del ciclo actual</button></div></section>
 <!-- CONFIG -->
 <section id="config" class="hidden">
-<div class="card"><h2>Conexión Supabase (para compartir entre dispositivos)</h2><p>Pegue aquí los datos de su proyecto Supabase. Quedan guardados en este navegador. En Vercel, póngalos como Variables de Entorno SUPABASE_URL y SUPABASE_KEY.</p>
+<div class="card"><h2>Conexión Supabase (para compartir entre dispositivos) - VERSIÓN 3</h2><p style="background:#ffe9e9;padding:8px;border-radius:8px"><b>Si ves VERSIÓN 3 aquí, ya tienes el archivo nuevo. Si no lo ves, todavía estás en el viejo.</b></p><p>Pegue aquí los datos de su proyecto Supabase. Quedan guardados en este navegador. En Vercel, póngalos como Variables de Entorno SUPABASE_URL y SUPABASE_KEY.</p>
 <label>Supabase URL</label><input id="cfgUrl" placeholder="https://xxxx.supabase.co">
 <label>Supabase Anon Key</label><input id="cfgKey" placeholder="sb_publishable_...">
-<button class="btn" onclick="conectarSupabase()">Conectar y probar</button> <button class="btn3" onclick="usarLocal()">Usar modo local</button>
+<button class="btn" onclick="conectarSupabase()">Conectar y probar</button> <button class="btn2" onclick="forzarSincronizar()">Forzar sincronización ahora</button> <button class="btn3" onclick="usarLocal()">Usar modo local</button>
 <p class="small" id="cfgMsg"></p><p class="small">Conectado: familias, historial y archivos se sincronizan en Supabase (tablas + Storage bucket adjuntos). Si una familia no aparece en otro dispositivo, es porque no se sincronizó. Este archivo corregido ya sincroniza automáticamente.</p></div>
 <div class="card"><h2>Ciclos</h2><p>Ciclo actual: <b>2026-2027</b> • Termina 31 dic 2027 • Reinicia 1 ene 2028. Para ver un ciclo pasado, cambie el selector. Para borrar un ciclo, use el botón con confirmación.</p><label>Ciclo</label><select id="selCiclo"><option>2026-2027</option><option>2027-2028</option><option>2028-2029</option></select><button class="btn3" onclick="cambiarCiclo()">Cambiar ciclo</button> <button class="danger" onclick="borrarCiclo()">Borrar ciclo seleccionado</button></div>
 <div class="card"><button class="btn2" onclick="guardarDatosColegio()">Guardar datos del colegio</button><p class="small">LICEO MERCANTIL • 12 Ave 12-31 Zona 1, Guatemala • Tel 4856-2663 - 2232-4401 • liceo.mercantil73@gmail.com</p></div>
@@ -104,17 +104,37 @@ async function conectarSupabase(){
 async function cargarDesdeSupabase(){
   if(!supabaseClient) return;
   const {data,error}=await supabaseClient.from('familias').select('*').eq('ciclo',cicloActual);
-  if(!error && data){ if(data.length>0 || familias.length===0){ familias=data.map(r=>({id:r.id,grado:r.grado,seccion:r.seccion,alumno:r.alumno,padre1:r.padre1,correo1:r.correo1,tel1:r.telefono1,padre2:r.padre2,correo2:r.correo2,tel2:r.telefono2})); saveLocal(); } }
+  if(error){ document.getElementById('cfgMsg').textContent='Error al leer Supabase: '+error.message+' - Ejecute el archivo supabase_fix.sql en Supabase'; return; }
+  // Si Supabase tiene datos, esos son los buenos. Si Supabase esta en 0 y este dispositivo tiene datos locales sin sincronizar, NO borrarlos, primero subirlos.
+  if(data && data.length>0){ familias=data.map(r=>({id:r.id,grado:r.grado,seccion:r.seccion,alumno:r.alumno,padre1:r.padre1,correo1:r.correo1,tel1:r.telefono1,padre2:r.padre2,correo2:r.correo2,tel2:r.telefono2})); saveLocal(); }
   const {data:m}=await supabaseClient.from('mensajes').select('*').eq('ciclo',cicloActual);
-  if(m){ mensajes=m.map(r=>({id:r.id,asunto:r.asunto,texto:r.texto,grado:r.grado,seccion:r.seccion,fecha:r.created_at,estado:r.estado||'Enviado'})); saveLocal(); }
+  if(m && m.length>0){ mensajes=m.map(r=>({id:r.id,asunto:r.asunto,texto:r.texto,grado:r.grado,seccion:r.seccion,fecha:r.created_at,estado:r.estado||'Enviado'})); saveLocal(); }
+  updateKPIs(); renderFamilias();
 }
 async function sincronizarTodoASupabase(){
-  if(!supabaseClient) return;
+  if(!supabaseClient) return 'no conectado';
+  let subidos=0, errores='';
   for(const f of familias){
     const row={grado:f.grado,seccion:f.seccion,alumno:f.alumno,padre1:f.padre1,correo1:f.correo1,telefono1:f.tel1,padre2:f.padre2,correo2:f.correo2,telefono2:f.tel2,ciclo:cicloActual};
-    if(f.id && String(f.id).length>10){ await supabaseClient.from('familias').upsert({id:f.id,...row}); } else { const {data}=await supabaseClient.from('familias').insert(row).select().single(); if(data) f.id=data.id; }
+    // NUNCA mandar id local-... a Supabase, Supabase crea su propio id uuid
+    if(f.id && !String(f.id).startsWith('local-')){
+      const {error}=await supabaseClient.from('familias').upsert({id:f.id,...row});
+      if(error) errores=error.message; else subidos++;
+    } else {
+      const {data,error}=await supabaseClient.from('familias').insert(row).select().single();
+      if(error) errores=error.message; else { if(data) f.id=data.id; subidos++; }
+    }
   }
-  saveLocal(); document.getElementById('syncMsg').textContent='Sincronizado con Supabase ✓ - Ya aparece en otros dispositivos';
+  saveLocal();
+  const el=document.getElementById('syncMsg'); if(el) el.textContent = errores ? ('Error al sincronizar: '+errores+' - Ejecute supabase_fix.sql en Supabase') : ('Sincronizado con Supabase ✓ - Subidos '+subidos+' - Ya aparece en otros dispositivos');
+  return errores || 'ok';
+}
+async function forzarSincronizar(){
+  if(!supabaseClient){ alert('Primero dale Conectar y probar'); return; }
+  document.getElementById('cfgMsg').textContent='Subiendo familias locales a Supabase...';
+  const r = await sincronizarTodoASupabase();
+  await cargarDesdeSupabase();
+  alert(r==='ok' ? 'Sincronizado. Ahora abre el otro dispositivo y recarga la página, ya debe aparecer la familia.' : 'Hubo error: '+r);
 }
 function usarLocal(){supabaseClient=null; document.getElementById('statusBadge').textContent='Modo local • Sin Supabase todavía'; document.getElementById('statusBadge').className='badge off';}
 function renderFamilias(){
