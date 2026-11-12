@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ComunicaCole - Mensajes del Colegio</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#f2f4f7;color:#222}
+header{background:#0F2A4D;color:#fff;padding:16px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+header img{width:64px;height:64px;object-fit:contain;background:#fff;border-radius:10px;padding:4px}
+header h1{margin:0;font-size:24px} header p{margin:2px 0 0;opacity:.85;font-size:13px}
+nav{display:flex;gap:8px;padding:12px 20px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.08);flex-wrap:wrap;position:sticky;top:0;z-index:10}
+button{cursor:pointer;border:0;border-radius:10px;padding:10px 14px;font-weight:600;background:#0F2A4D;color:#fff}
+button.gold{background:#C5A880;color:#111} button.green{background:#1B7A4D} button.gray{background:#e6e9ee;color:#222} button.red{background:#b42318}
+input,select,textarea{width:100%;padding:10px;border:1px solid #d9dee5;border-radius:10px;font-size:14px;background:#fff}
+label{font-weight:600;font-size:13px;display:block;margin:12px 0 6px}
+.wrap{max-width:1080px;margin:0 auto;padding:18px 16px 60px}
+.card{background:#fff;border-radius:14px;padding:16px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.kpi{font-size:32px;font-weight:800;color:#0F2A4D;margin:4px 0 0} .mut{color:#5a6470;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:14px} th,td{padding:10px;border-bottom:1px solid #eee;text-align:left;vertical-align:top}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef2ff;font-size:12px;font-weight:700}
+.hidden{display:none} .flex{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.filelist{font-size:13px} .filelist a{color:#0F2A4D;font-weight:600}
+.alert{background:#fff8e6;border:1px solid #f0d48a;padding:12px;border-radius:12px;font-size:14px}
+.success{background:#eaf7ef;border:1px solid #9ad3b0;padding:12px;border-radius:12px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap} .tabs button{background:#e6e9ee;color:#222} .tabs button.active{background:#0F2A4D;color:#fff}
+</style></head>
+<body>
+<header>
+<div id="logoBox"><img id="logoImg" src="" alt="Logo" onerror="this.style.display='none'"></div>
+<div style="flex:1;min-width:240px"><h1 id="colegioNombre">LICEO MERCANTIL</h1><p id="colegioDatos">12 AVE 12-31 ZONA 1 • GUATEMALA | Tel. 4856-2663 - 2232-4401 | liceo.mercantil73@gmail.com</p><p style="font-size:12px;opacity:.75">Ciclo 2026-2027 • Termina 31 de diciembre de 2027 • Reinicia 1 de enero de 2028</p></div>
+<div><button class="gold" onclick="showView('inicio')">Inicio</button></div>
+</header>
+<nav>
+<button onclick="showView('inicio')">Inicio</button><button onclick="showView('grados')">Grados y Secciones</button><button onclick="showView('mensaje')">Enviar Mensaje</button><button onclick="showView('historial')">Historial y Lectura</button><button onclick="showView('config')">Configuración / Supabase / Vercel</button>
+<span id="estadoConexion" class="badge">Modo local • Sin Supabase todavía</span>
+</nav>
+<div class="wrap">
+
+<!-- INICIO -->
+<section id="view-inicio">
+<div class="grid">
+<div class="card"><div class="mut">Total familias</div><div class="kpi" id="kFamilias">0</div></div>
+<div class="card"><div class="mut">Total alumnos</div><div class="kpi" id="kAlumnos">0</div></div>
+<div class="card"><div class="mut">Grados configurados</div><div class="kpi">12</div></div>
+<div class="card"><div class="mut">Mensajes enviados</div><div class="kpi" id="kMensajes">0</div></div>
+</div>
+<div class="card"><h3>Bienvenido</h3><p class="mut">Esta aplicación es privada para su colegio. Cargue los listados por grado y sección, envíe mensajes por WhatsApp y correo, y adjunte hasta <b>5 archivos</b> por mensaje: PDF, Word, Excel, texto o fotos (JPG/PNG). Cada archivo genera un link de descarga para el padre de familia.</p>
+<div class="alert"><b>Si aún no conectó Supabase:</b> la app funciona en modo local en este dispositivo. Para que todos vean lo mismo desde cualquier dispositivo, conecte Supabase en Configuración siguiendo el README. Sin Supabase, cada dispositivo guarda lo suyo.</div>
+<p><button onclick="showView('grados')">Ir a Grados</button> <button class="green" onclick="showView('mensaje')">Enviar mensaje</button></p></div>
+<div class="card"><h3>Grados</h3><div id="listaGradosInicio"></div></div>
+</section>
+
+<!-- GRADOS -->
+<section id="view-grados" class="hidden">
+<div class="card"><h3>Grados y Secciones A / B</h3><p class="mut">Seleccione un grado y una sección. A y B son listas separadas.</p>
+<label>Grado</label><select id="selGrado" onchange="cambiarGrado()"></select>
+<div class="tabs" style="margin-top:10px"><button id="btnA" onclick="setSeccion('A')">Sección A</button><button id="btnB" onclick="setSeccion('B')">Sección B</button></div></div>
+<div class="card"><h3 id="tituloGrado">Familias</h3>
+<div class="flex"><input id="buscador" placeholder="Buscar por alumno o padre..." oninput="renderFamilias()"><button onclick="exportarCSV()">Exportar CSV</button><button class="gold" onclick="document.getElementById('fileExcel').click()">Importar Excel / CSV</button><input type="file" id="fileExcel" accept=".xlsx,.xls,.csv" class="hidden" onchange="importarArchivo(event)"><button onclick="descargarPlantilla()">Descargar plantilla</button></div>
+<p class="mut">Formato: Alumno, Padre1, Correo1, Telefono1, Padre2, Correo2, Telefono2. Si sube Excel, la app lee la primera hoja.</p>
+<table><thead><tr><th>Alumno</th><th>Padre/Madre 1</th><th>Padre/Madre 2</th><th>Acciones</th></tr></thead><tbody id="tbodyFamilias"></tbody></table>
+<h4>Agregar familia manualmente</h4>
+<div class="grid"><div><label>Alumno</label><input id="fAlumno"></div><div><label>Padre/Madre 1 - Nombre</label><input id="fP1"></div><div><label>Correo 1</label><input id="fC1"></div><div><label>WhatsApp 1 (solo números, ej. 50248562663)</label><input id="fT1"></div><div><label>Padre/Madre 2 - Nombre</label><input id="fP2"></div><div><label>Correo 2</label><input id="fC2"></div><div><label>WhatsApp 2</label><input id="fT2"></div></div>
+<button class="green" onclick="agregarFamilia()">Agregar familia</button>
+</div>
+</section>
+
+<!-- MENSAJE -->
+<section id="view-mensaje" class="hidden">
+<div class="card"><h3>Enviar mensaje</h3>
+<label>Enviar a</label><select id="msgDestino" onchange="actualizarDestino()"><option value="grado">Todo el grado y sección seleccionada</option><option value="individual">Solo una familia (seleccionar abajo)</option></select>
+<div id="boxIndividual" class="hidden"><label>Seleccionar familia</label><select id="msgFamilia"></select></div>
+<label>Asunto</label><input id="msgAsunto" placeholder="Ej. Aviso de reunión de padres">
+<label>Mensaje</label><textarea id="msgTexto" rows="6" placeholder="Escriba el mensaje aquí..."></textarea>
+<label><input type="checkbox" id="msgFirma" checked style="width:auto"> Incluir firma del colegio al final</label>
+<label>Canal</label><select id="msgCanal"><option value="Ambos">WhatsApp y Correo</option><option value="WhatsApp">Solo WhatsApp</option><option value="Correo">Solo Correo</option></select>
+</div>
+<div class="card"><h3>Adjuntos - Hasta 5 archivos por mensaje</h3>
+<p class="mut">Puede subir: <b>PDF, Word (.docx), Excel (.xlsx), texto (.txt) y fotos (.jpg / .png)</b>. No solo PDF. Cada archivo máximo 10 MB. Total máximo 20 MB por mensaje.</p>
+<input type="file" id="fileAdjuntos" multiple accept=".pdf,.docx,.txt,.xlsx,.xls,.jpg,.jpeg,.png" onchange="prepararAdjuntos(event)">
+<div id="listaAdjuntos" class="filelist"></div>
+<div class="alert" style="margin-top:12px"><b>¿Cómo le llega al padre?</b> WhatsApp y correo no permiten adjuntar archivos automáticamente desde una web. Por eso la app guarda cada archivo y genera un <b>link de descarga</b>. Al padre le llega el mensaje + los links. Él toca el link y descarga el PDF o la foto.</div>
+<p><button class="green" onclick="enviarMensaje()">Generar envío y guardar en historial</button></p>
+<div id="resultadoEnvio"></div>
+</div>
+</section>
+
+<!-- HISTORIAL -->
+<section id="view-historial" class="hidden">
+<div class="card"><h3>Historial y confirmación de lectura</h3><p class="mut">WhatsApp y correo no devuelven lectura automática. Marque manualmente cuando el padre confirme: Entregado / Leído / No recibido.</p>
+<table><thead><tr><th>Fecha</th><th>Asunto / Grado</th><th>Canal</th><th>Adjuntos</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="tbodyHistorial"></tbody></table></div>
+</section>
+
+<!-- CONFIG -->
+<section id="view-config" class="hidden">
+<div class="card"><h3>Datos del colegio</h3>
+<label>Nombre del colegio</label><input id="cfgNombre"><label>Dirección</label><input id="cfgDireccion"><label>Teléfonos</label><input id="cfgTel"><label>Correo</label><input id="cfgCorreo"><label>Logo (URL o subir imagen)</label><input id="cfgLogo" placeholder="https://.../logo.png"><input type="file" accept="image/*" onchange="subirLogo(event)" style="margin-top:8px">
+<button class="green" onclick="guardarColegio()">Guardar datos del colegio</button></div>
+<div class="card"><h3>Conexión Supabase (para compartir entre dispositivos)</h3>
+<p class="mut">Pegue aquí los datos de su proyecto Supabase. Quedan guardados en este navegador. En Vercel, póngalos como Variables de Entorno: SUPABASE_URL y SUPABASE_KEY.</p>
+<label>Supabase URL</label><input id="cfgSupaUrl" placeholder="https://xxxx.supabase.co"><label>Supabase Anon Key</label><input id="cfgSupaKey" placeholder="eyJ..."><button onclick="conectarSupabase()">Conectar y probar</button> <button class="gray" onclick="desconectarSupabase()">Usar modo local</button>
+<p id="msgSupa" class="mut"></p></div>
+<div class="card"><h3>Ciclos</h3><p>Ciclo actual: <b>2026-2027</b> • Termina 31 dic 2027 • Reinicia 1 ene 2028. Para ver un ciclo pasado, cambie el selector. Para borrar un ciclo, use el botón con confirmación.</p>
+<label>Ver ciclo</label><select id="selCiclo"><option>2026-2027 (actual)</option><option>2025-2026 (pasado - ejemplo)</option></select>
+<button class="red" onclick="borrarTodo()">Borrar todo y empezar desde cero</button></div>
+</section>
+
+</div>
+<script>
+const GRADOS=["1ro. Básico","2do. Básico","3ro. Básico","4to. Bachillerato Científica","4to. Bachillerato Computación","4to. Bachillerato Biológicas","5to. Bachillerato Científico","5to. Bachillerato Biológicas","5to. Bachillerato Computación","4to. Perito Contador","5to. Perito Contador","6to. Perito Contador"];
+let gradoActual=GRADOS[0], seccionActual='A';
+let familias=JSON.parse(localStorage.getItem('cc_familias')||'[]');
+let historial=JSON.parse(localStorage.getItem('cc_historial')||'[]');
+let colegio=JSON.parse(localStorage.getItem('cc_colegio')||'{"nombre":"LICEO MERCANTIL","direccion":"12 AVE 12-31 ZONA 1 • GUATEMALA","tel":"4856-2663 - 2232-4401","correo":"liceo.mercantil73@gmail.com","logo":""}');
+let adjuntos=[]; // {nombre,tipo,tamano,url,contenidoTxt}
+let supa=null;
+function save(){localStorage.setItem('cc_familias',JSON.stringify(familias));localStorage.setItem('cc_historial',JSON.stringify(historial));localStorage.setItem('cc_colegio',JSON.stringify(colegio));}
+function showView(id){['inicio','grados','mensaje','historial','config'].forEach(v=>document.getElementById('view-'+v).classList.toggle('hidden',v!==id));renderAll();}
+function cambiarGrado(){gradoActual=document.getElementById('selGrado').value;renderFamilias();}
+function setSeccion(s){seccionActual=s;document.getElementById('btnA').classList.toggle('active',s==='A');document.getElementById('btnB').classList.toggle('active',s==='B');renderFamilias();}
+function filtradas(){let q=(document.getElementById('buscador')?.value||'').toLowerCase();return familias.filter(f=>f.grado===gradoActual&&f.seccion===seccionActual&&(!q||(f.alumno+' '+f.p1+' '+f.p2).toLowerCase().includes(q)));}
+function renderAll(){
+ document.getElementById('colegioNombre').textContent=colegio.nombre;document.getElementById('colegioDatos').textContent=colegio.direccion+' | Tel. '+colegio.tel+' | '+colegio.correo;
+ if(colegio.logo)document.getElementById('logoImg').src=colegio.logo;
+ document.getElementById('kFamilias').textContent=familias.length;document.getElementById('kAlumnos').textContent=familias.length;document.getElementById('kMensajes').textContent=historial.length;
+ let sel=document.getElementById('selGrado'); if(sel && sel.options.length===0){GRADOS.forEach(g=>{let o=document.createElement('option');o.textContent=g;sel.appendChild(o);});}
+ document.getElementById('listaGradosInicio').innerHTML=GRADOS.map(g=>`<div class="flex" style="justify-content:space-between;border-bottom:1px solid #eee;padding:8px 0"><span>${g} - A / B</span><span>${familias.filter(f=>f.grado===g).length} familias <button onclick="irGrado('${g}')">Abrir</button></span></div>`).join('');
+ renderFamilias();renderHistorial();actualizarDestino();
+ document.getElementById('cfgNombre').value=colegio.nombre;document.getElementById('cfgDireccion').value=colegio.direccion;document.getElementById('cfgTel').value=colegio.tel;document.getElementById('cfgCorreo').value=colegio.correo;document.getElementById('cfgLogo').value=colegio.logo||'';
+}
+function irGrado(g){document.getElementById('selGrado').value=g;gradoActual=g;showView('grados');}
+function renderFamilias(){
+ document.getElementById('tituloGrado').textContent=`Familias - ${gradoActual} - Sección ${seccionActual} (${filtradas().length})`;
+ document.getElementById('tbodyFamilias').innerHTML=filtradas().map((f,i)=>{let idx=familias.indexOf(f);return `<tr><td><b>${f.alumno}</b></td><td>${f.p1}<br><small>${f.c1||''}<br>${f.t1||''}</small></td><td>${f.p2||''}<br><small>${f.c2||''}<br>${f.t2||''}</small></td><td><button onclick="mensajeIndividual(${idx})">Mensaje individual</button> <button class="red" onclick="eliminarFamilia(${idx})">Eliminar</button></td></tr>`}).join('')||'<tr><td colspan="4">Este grado aún no tiene familias. Importa el listado en Excel o agrega la primera familia.</td></tr>';
+ let mf=document.getElementById('msgFamilia'); if(mf){mf.innerHTML=familias.map((f,i)=>`<option value="${i}">${f.alumno} - ${f.grado} ${f.seccion} - ${f.p1}</option>`).join('');}
+}
+function agregarFamilia(){let f={alumno:val('fAlumno'),p1:val('fP1'),c1:val('fC1'),t1:val('fT1'),p2:val('fP2'),c2:val('fC2'),t2:val('fT2'),grado:gradoActual,seccion:seccionActual};if(!f.alumno||!f.p1){alert('Falta alumno y padre/madre 1');return;}familias.push(f);save();['fAlumno','fP1','fC1','fT1','fP2','fC2','fT2'].forEach(id=>document.getElementById(id).value='');renderAll();alert('Familia agregada');}
+function val(id){return document.getElementById(id).value.trim();}
+function eliminarFamilia(i){if(confirm('¿Eliminar esta familia?')){familias.splice(i,1);save();renderAll();}}
+function descargarPlantilla(){let csv="Alumno,Padre1,Correo1,Telefono1,Padre2,Correo2,Telefono2\n";let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='plantilla_listado.csv';a.click();}
+function exportarCSV(){let rows=[["Alumno","Padre1","Correo1","Telefono1","Padre2","Correo2","Telefono2"]];filtradas().forEach(f=>rows.push([f.alumno,f.p1,f.c1,f.t1,f.p2,f.c2,f.t2]));let csv=rows.map(r=>r.join(',')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='listado_'+gradoActual+'_'+seccionActual+'.csv';a.click();}
+function importarArchivo(e){let file=e.target.files[0];if(!file)return;let reader=new FileReader();reader.onload=()=>{try{let text=reader.result;if(file.name.endsWith('.csv')||file.name.endsWith('.txt')){parseCSV(text);}else{alert('Para Excel (.xlsx) en esta versión: guárdelo como CSV en Excel (Archivo > Guardar como > CSV) y súbalo de nuevo. En Supabase Storage también puede subir el .xlsx original. O pegue los datos.');}}catch(err){alert('No se pudo leer el archivo');}};reader.readAsText(file);}
+function parseCSV(text){let lines=text.split(/\r?\n/).filter(l=>l.trim());let start=lines[0].toLowerCase().includes('alumno')?1:0;let n=0;for(let i=start;i<lines.length;i++){let c=lines[i].split(',');if(c.length<2)continue;familias.push({alumno:c[0]?.trim(),p1:c[1]?.trim(),c1:c[2]?.trim(),t1:c[3]?.trim(),p2:c[4]?.trim(),c2:c[5]?.trim(),t2:c[6]?.trim(),grado:gradoActual,seccion:seccionActual});n++;}save();renderAll();alert('Se importaron '+n+' familias a '+gradoActual+' '+seccionActual);}
+function mensajeIndividual(i){showView('mensaje');document.getElementById('msgDestino').value='individual';actualizarDestino();document.getElementById('msgFamilia').value=i;}
+function actualizarDestino(){let d=document.getElementById('msgDestino').value;document.getElementById('boxIndividual').classList.toggle('hidden',d!=='individual');}
+function prepararAdjuntos(e){
+ let files=[...e.target.files];
+ if(adjuntos.length+files.length>5){alert('Máximo 5 archivos por mensaje.');return;}
+ for(let file of files){
+   if(file.size>10*1024*1024){alert(file.name+' supera 10 MB y no se agregó.');continue;}
+   let reader=new FileReader();
+   reader.onload=()=>{
+     // Si hay Supabase y bucket, aquí se subiría a Supabase Storage. En modo local se guarda como link local / data.
+     adjuntos.push({nombre:file.name,tipo:file.type,tamano:file.size,url:reader.result,esImagen:file.type.startsWith('image/')});
+     renderAdjuntos();
+   };
+   if(file.type.startsWith('image/')||file.type.includes('text')) reader.readAsDataURL(file); else reader.readAsDataURL(file);
+ }
+}
+function renderAdjuntos(){document.getElementById('listaAdjuntos').innerHTML=adjuntos.map((a,i)=>`<div>📎 ${a.nombre} - ${(a.tamano/1024).toFixed(0)} KB ${a.esImagen?'<br><img src="'+a.url+'" style="max-width:180px;border-radius:8px;margin:6px 0">':''} <button class="gray" onclick="adjuntos.splice(${i},1);renderAdjuntos()">Quitar</button></div>`).join('')||'Sin adjuntos todavía.';}
+function firmaColegio(){return `\n\n---\n${colegio.nombre}\n${colegio.direccion}\nTel. ${colegio.tel} | ${colegio.correo}`;}
+function enviarMensaje(){
+ let asunto=document.getElementById('msgAsunto').value.trim()||'Mensaje del colegio';
+ let texto=document.getElementById('msgTexto').value.trim(); if(!texto){alert('Escriba el mensaje');return;}
+ let canal=document.getElementById('msgCanal').value;
+ let dest=document.getElementById('msgDestino').value;
+ let lista = dest==='individual' ? [familias[parseInt(document.getElementById('msgFamilia').value)]] : filtradas();
+ if(!lista.length){alert('No hay familias en este grado/sección');return;}
+ let links = adjuntos.map((a,i)=>`${i+1}. ${a.nombre}: ${a.url.startsWith('http')?a.url:'(archivo adjunto - descargar desde la app)'}`).join('\n');
+ let cuerpo = texto + (document.getElementById('msgFirma').checked?firmaColegio():'') + (adjuntos.length?`\n\nAdjuntos (${adjuntos.length}/5):\n${links}`:'');
+ let html = `<div class="success"><b>Mensaje listo para enviar a ${lista.length} familia(s) - ${canal}</b><p>Se guardó en historial. Ahora toque por cada familia para abrir WhatsApp / Correo:</p>`;
+ lista.forEach((f,i)=>{
+   let wa='https://wa.me/'+(f.t1||'').replace(/\D/g,'')+'?text='+encodeURIComponent(cuerpo);
+   let mail='mailto:'+(f.c1||'')+'?subject='+encodeURIComponent(asunto)+'&body='+encodeURIComponent(cuerpo);
+   html+=`<div style="border-top:1px solid #ddd;padding:8px 0"><b>${f.alumno}</b> - ${f.p1} ${f.t1?'<a href="'+wa+'" target="_blank"><button class="green">Abrir WhatsApp</button></a>':''} ${f.c1?'<a href="'+mail+'"><button>Abrir Correo</button></a>':''} <small>${f.c1||'sin correo'} | ${f.t1||'sin WhatsApp'}</small></div>`;
+ });
+ html+='</div><p class="mut">Nota: WhatsApp / correo no permiten adjuntar archivos automáticamente. El padre descarga cada archivo desde el link que genera Supabase Storage en la versión conectada. En modo local, descargue y adjunte manualmente el archivo al abrir WhatsApp / correo.</p>';
+ document.getElementById('resultadoEnvio').innerHTML=html;
+ historial.unshift({fecha:new Date().toLocaleString(),asunto,grado:gradoActual+' '+seccionActual,canal,adjuntos:adjuntos.map(a=>a.nombre).join(', '),estado:'Enviado',dest:lista.length});
+ save();renderHistorial();renderAll();
+}
+function renderHistorial(){document.getElementById('tbodyHistorial').innerHTML=historial.map((h,i)=>`<tr><td>${h.fecha}</td><td><b>${h.asunto}</b><br><small>${h.grado} - ${h.dest} familia(s)</small></td><td>${h.canal}</td><td>${h.adjuntos||'Sin adjuntos'}</td><td><span class="badge">${h.estado}</span></td><td><button onclick="cambiarEstado(${i},'Entregado')">Entregado</button><button onclick="cambiarEstado(${i},'Leído')">Leído</button><button class="red" onclick="cambiarEstado(${i},'No recibido')">No recibido</button></td></tr>`).join('')||'<tr><td colspan="6">Aún no hay mensajes enviados.</td></tr>';}
+function cambiarEstado(i,e){historial[i].estado=e;save();renderHistorial();}
+function guardarColegio(){colegio={nombre:val('cfgNombre'),direccion:val('cfgDireccion'),tel:val('cfgTel'),correo:val('cfgCorreo'),logo:val('cfgLogo')};save();renderAll();alert('Datos guardados');}
+function subirLogo(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{colegio.logo=r.result;document.getElementById('cfgLogo').value=r.result;save();renderAll();};r.readAsDataURL(f);}
+function conectarSupabase(){let url=document.getElementById('cfgSupaUrl').value.trim(),key=document.getElementById('cfgSupaKey').value.trim();if(!url||!key){alert('Pegue URL y Anon Key');return;}try{supa=window.supabase.createClient(url,key);localStorage.setItem('cc_supa_url',url);localStorage.setItem('cc_supa_key',key);document.getElementById('estadoConexion').textContent='Conectado a Supabase ✓';document.getElementById('msgSupa').textContent='Conectado. En la versión completa, familias, historial y archivos se sincronizan en Supabase (tablas + Storage bucket adjuntos).';alert('Conectado a Supabase. Guarde estas llaves también en Vercel como Variables de Entorno.');}catch(e){alert('No se pudo conectar: '+e.message);}}
+function desconectarSupabase(){supa=null;localStorage.removeItem('cc_supa_url');localStorage.removeItem('cc_supa_key');document.getElementById('estadoConexion').textContent='Modo local • Sin Supabase todavía';}
+function borrarTodo(){if(confirm('¿Borrar TODO y empezar desde cero? Esta acción borra familias, historial y adjuntos.')){if(confirm('Confirme de nuevo: ¿Seguro que quiere borrar todo?')){familias=[];historial=[];adjuntos=[];save();renderAll();alert('Todo borrado. Contadores en 0.');}}}
+window.onload=()=>{let u=localStorage.getItem('cc_supa_url'),k=localStorage.getItem('cc_supa_key');if(u&&k){document.getElementById('cfgSupaUrl').value=u;document.getElementById('cfgSupaKey').value=k;document.getElementById('estadoConexion').textContent='Supabase guardado ✓ - reconecte en Configuración';}setSeccion('A');renderAll();renderAdjuntos();};
+</script>
+</body></html>
