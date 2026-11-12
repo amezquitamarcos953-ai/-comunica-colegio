@@ -51,3 +51,4 @@ App privada, sin menciones a Meta AI. Link limpio tipo: tu-colegio.vercel.app
 - Servicio anual: Q1,500 / año
 - Total primer año: Q4,000
 - A partir del segundo año: solo Q1,500
+- .
