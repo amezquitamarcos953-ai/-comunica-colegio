@@ -66,7 +66,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <!-- CONFIG -->
 <section id="config" class="hidden">
 <div class="card"><h2>Conexión Supabase (para compartir entre dispositivos)</h2><p>Pegue aquí los datos de su proyecto Supabase. Quedan guardados en este navegador. En Vercel, póngalos como Variables de Entorno SUPABASE_URL y SUPABASE_KEY.</p>
-<p><b>Conexión privada del colegio. Solo la ve el administrador.</b></p><div class="card" style="background:#eef6ff"><h3>Correo masivo con Brevo - solo administrador</h3><label>Tu llave API de Brevo (privada, no la ven los papás)</label><input id="brevoKey" type="password" placeholder="xkeysib-..."><label>Correo remitente verificado en Brevo (ej. liceo.mercantil73@gmail.com)</label><input id="brevoSender" placeholder="liceo.mercantil73@gmail.com"><button class="btn" onclick="guardarBrevo()">Guardar llave de Brevo</button><p class="small">Brevo gratis: 300 correos por día. Si tienes más de 300 papás, la app manda los primeros 300 y te avisa para mandar el resto mañana. Necesitas verificar ese correo en Brevo antes.</p></div><label>Supabase URL (privada)</label><input id="cfgUrl" type="password" placeholder="https://xxxx.supabase.co">
+<p><b>Conexión privada del colegio. Solo la ve el administrador.</b></p><div class="card" style="background:#eef6ff"><h3>Correo masivo con Brevo - solo administrador</h3><label>Contraseña del colegio (la que le vas a dar a la directora, ej. Liceo2026)</label><input id="adminPass" type="text" placeholder="Liceo2026"><label>Tu llave API de Brevo (privada, no la ven los papás)</label><input id="brevoKey" type="password" placeholder="xkeysib-..."><label>Correo remitente verificado en Brevo (ej. liceo.mercantil73@gmail.com)</label><input id="brevoSender" placeholder="liceo.mercantil73@gmail.com"><button class="btn" onclick="guardarBrevo()">Guardar llave de Brevo</button> <button class="btn2" onclick="guardarConfigNube()">🔒 Guardar todo en la nube con contraseña</button><p class="small">Con este botón, guardas la contraseña + llave + correo en Supabase. Después la directora solo escribe la contraseña y ya le funciona en cualquier aparato, sin que toques su teléfono.</p><p class="small">Brevo gratis: 300 correos por día. Si tienes más de 300 papás, la app manda los primeros 300 y te avisa para mandar el resto mañana. Necesitas verificar ese correo en Brevo antes.</p></div><label>Supabase URL (privada)</label><input id="cfgUrl" type="password" placeholder="https://xxxx.supabase.co">
 <label>Supabase Anon Key (privada)</label><input id="cfgKey" type="password" placeholder="sb_publishable_...">
 <button class="btn" onclick="conectarSupabase()">Conectar y probar</button> <button class="btn2" onclick="forzarSincronizar()">Sincronizar ahora</button> <button class="btn2" onclick="forzarSincronizar()">Forzar sincronización ahora</button> <button class="btn3" onclick="usarLocal()">Usar modo local</button>
 <p class="small" id="cfgMsg"></p><p class="small">Conectado: familias, historial y archivos se sincronizan en Supabase (tablas + Storage bucket adjuntos). Si una familia no aparece en otro dispositivo, es porque no se sincronizó. Este archivo corregido ya sincroniza automáticamente.</p></div>
@@ -245,5 +245,61 @@ function cambiarCiclo(){ cicloActual=document.getElementById('selCiclo').value; 
 function borrarCiclo(){ if(!confirm('¿Borrar todos los datos del ciclo '+document.getElementById('selCiclo').value+'?'))return; familias=[]; mensajes=[]; saveLocal(); alert('Ciclo borrado.'); }
 function guardarDatosColegio(){ alert('Datos del colegio guardados: LICEO MERCANTIL'); }
 // Auto-conectar si ya hay llaves
-window.onload=async()=>{ const bk=localStorage.getItem('cc_brevo_key'); if(bk) document.getElementById('brevoKey').value=bk; const bs=localStorage.getItem('cc_brevo_sender'); if(bs) document.getElementById('brevoSender').value=bs; if(location.search.includes('admin=1')){ document.getElementById('btnConfig').classList.remove('hidden'); } llenarSelects(); updateKPIs(); const u=localStorage.getItem('cc_supabase_url'); const k=localStorage.getItem('cc_supabase_key'); if(u&&k){ document.getElementById('cfgUrl').value=u; document.getElementById('cfgKey').value=k; try{ supabaseClient=window.supabase.createClient(u,k); document.getElementById('statusBadge').textContent='Conectado a Supabase ✓'; document.getElementById('statusBadge').className='badge'; await cargarDesdeSupabase(); }catch(e){} } };
+const SUPA_URL_EMBED="https://ufhcwtpweivvmiipiedc.supabase.co";
+const SUPA_KEY_EMBED="sb_publishable_qjRqv8Wi_Dr9--LQV7zk2g_JLsKy0lt";
+async function cargarConfigNube(password){
+  if(!supabaseClient) return false;
+  try{
+    const {data,error}=await supabaseClient.from('config_app').select('*').eq('id',1).maybeSingle();
+    if(error||!data) return false;
+    if(String(data.admin_pass||'')!==String(password)) return false;
+    if(data.brevo_key) localStorage.setItem('cc_brevo_key', data.brevo_key);
+    if(data.brevo_sender) localStorage.setItem('cc_brevo_sender', data.brevo_sender);
+    const bk=document.getElementById('brevoKey'); if(bk&&data.brevo_key) bk.value=data.brevo_key;
+    const bs=document.getElementById('brevoSender'); if(bs&&data.brevo_sender) bs.value=data.brevo_sender;
+    return true;
+  }catch(e){ return false; }
+}
+async function guardarConfigNube(){
+  const pass=(document.getElementById('adminPass').value||'').trim();
+  const bk=(document.getElementById('brevoKey').value||'').trim();
+  const bs=(document.getElementById('brevoSender').value||'').trim();
+  if(!pass){ alert('Primero escribe una contraseña, por ejemplo Liceo2026'); return; }
+  if(!bk){ alert('Primero pega la llave de Brevo'); return; }
+  localStorage.setItem('cc_brevo_key', bk); localStorage.setItem('cc_brevo_sender', bs);
+  if(!supabaseClient){ alert('Conecta Supabase primero'); return; }
+  const {error}=await supabaseClient.from('config_app').upsert({id:1, admin_pass:pass, brevo_key:bk, brevo_sender:bs});
+  if(error){ alert('No se pudo guardar en la nube. ¿Ya creaste la tabla config_app en Supabase con el SQL que te di? Error: '+error.message); return; }
+  alert('Listo. Contraseña y llave de Brevo guardadas en la nube. Ahora la directora solo tiene que escribir esa contraseña en su teléfono o computadora y ya le funciona, sin que toques su aparato.');
+}
+async function entrarConContrasena(){
+  const p=document.getElementById('passEntrada').value||'';
+  if(!p){ alert('Escribe la contraseña'); return; }
+  const ok=await cargarConfigNube(p);
+  if(!ok){ alert('Contraseña incorrecta o todavía no guardaste nada en la nube.'); return; }
+  document.getElementById('modalPass').style.display='none';
+  alert('Listo. Ya se activó el correo en este aparato. Ya puedes mandar.');
+}
+window.onload=async()=>{
+  // Auto-conectar Supabase con llaves del colegio (llaves públicas, no secretas)
+  try{
+    supabaseClient=window.supabase.createClient(SUPA_URL_EMBED, SUPA_KEY_EMBED);
+    document.getElementById('cfgUrl').value=SUPA_URL_EMBED; document.getElementById('cfgKey').value=SUPA_KEY_EMBED;
+    document.getElementById('statusBadge').textContent='Conectado a Supabase ✓'; document.getElementById('statusBadge').className='badge';
+    await cargarDesdeSupabase();
+  }catch(e){}
+ const bk=localStorage.getItem('cc_brevo_key'); if(bk) document.getElementById('brevoKey').value=bk; const bs=localStorage.getItem('cc_brevo_sender'); if(bs) document.getElementById('brevoSender').value=bs; if(location.search.includes('admin=1')){ document.getElementById('btnConfig').classList.remove('hidden'); } llenarSelects(); updateKPIs(); const u=localStorage.getItem('cc_supabase_url'); const k=localStorage.getItem('cc_supabase_key'); if(u&&k){ document.getElementById('cfgUrl').value=u; document.getElementById('cfgKey').value=k; try{ supabaseClient=window.supabase.createClient(u,k); document.getElementById('statusBadge').textContent='Conectado a Supabase ✓'; document.getElementById('statusBadge').className='badge'; await cargarDesdeSupabase(); }catch(e){} } };
+
+// Si este aparato todavía no tiene llave de Brevo, mostrar cajita de contraseña
+setTimeout(()=>{
+  const tiene=localStorage.getItem('cc_brevo_key');
+  const esAdmin=location.search.includes('admin=1');
+  if(!tiene && !esAdmin){ const m=document.getElementById('modalPass'); if(m) m.style.display='flex'; }
+}, 1200);
+
+
+<div id="modalPass" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:99;padding:16px">
+<div class="card" style="max-width:420px;width:100%"><h2>LICEO MERCANTIL</h2><p>Escribe la contraseña del colegio para activar el correo en este aparato. Solo se escribe 1 vez.</p><label>Contraseña del colegio</label><input id="passEntrada" type="password" placeholder="Escribe la contraseña"><button class="btn2" onclick="entrarConContrasena()">Entrar</button><p class="small">Si no tienes la contraseña, pídesela al administrador del colegio.</p></div>
+</div>
+
 </script></body></html>
