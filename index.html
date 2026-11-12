@@ -24,7 +24,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <button class="btn" onclick="show('grados')">Grados y Secciones</button>
 <button class="btn" onclick="show('enviar')">Enviar Mensaje</button>
 <button class="btn" onclick="show('historial')">Historial y Lectura</button>
-<button class="btn" onclick="show('config')">Configuración / Supabase / Vercel</button>
+<button class="btn hidden" id="btnConfig" onclick="show('config')">Configuración</button>
 <span id="statusBadge" class="badge off">Modo local • Sin Supabase todavía</span>
 </nav>
 <div class="wrap">
@@ -48,16 +48,16 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <h3>Agregar familia manualmente</h3><div class="grid3">
 <div><label>Alumno</label><input id="fAlumno"></div><div><label>Padre/Madre 1 - Nombre</label><input id="fP1"></div><div><label>Correo 1</label><input id="fC1"></div>
 <div><label>WhatsApp 1 (solo números, ej. 50248562663)</label><input id="fT1"></div><div><label>Padre/Madre 2 - Nombre</label><input id="fP2"></div><div><label>Correo 2</label><input id="fC2"></div><div><label>WhatsApp 2</label><input id="fT2"></div>
-</div><button class="btn2" onclick="addFamilia()">Agregar familia y sincronizar</button><p class="small" id="syncMsg"></p></div>
+</div><button class="btn2" id="btnAgregarFam" onclick="addFamilia()">Agregar familia y sincronizar</button> <button class="btn3" onclick="cancelarEdicion()">Cancelar edición</button><p class="small" id="syncMsg"></p></div>
 </section>
 <!-- ENVIAR -->
 <section id="enviar" class="hidden">
 <div class="card"><h2>Enviar Mensaje</h2><div class="grid"><div><label>Grado destino</label><select id="envGrado"></select></div><div><label>Sección</label><select id="envSec"><option value="A">A</option><option value="B">B</option><option value="TODAS">Todas las secciones</option></select></div></div>
 <label>Asunto</label><input id="mAsunto" placeholder="Ej. Reunión de padres, aviso de examen...">
 <label>Mensaje</label><textarea id="mTexto" rows="6" placeholder="Escriba el mensaje aquí... Se agregará automáticamente el encabezado del colegio."></textarea>
-<div class="grid"><div><label>Importar mensaje desde archivo (txt, Word, PDF, imagen)</label><input type="file" id="mFile" accept=".txt,.doc,.docx,.pdf,.jpg,.jpeg,.png" onchange="importMensaje(event)"></div><div><label>Adjuntos (máx 5, 10 MB c/u, 20 MB total)</label><input type="file" id="mAdj" multiple onchange="checkAdjuntos()"><p class="small" id="adjInfo"></p></div></div>
+<div class="grid"><div><label>Importar mensaje desde archivo <button class="btn3" onclick="quitarImportado()">Quitar</button></label><input type="file" id="mFile" accept=".txt,.doc,.docx,.pdf,.jpg,.jpeg,.png" onchange="importMensaje(event)"></div><div><label>Adjuntos <button class="btn3" onclick="quitarAdjuntos()">Quitar adjuntos</button></label><input type="file" id="mAdj" multiple onchange="checkAdjuntos()"><p class="small" id="adjInfo"></p></div></div>
 <p class="small">Al enviar, se abrirá WhatsApp y correo listos para cada familia. El sistema guardará el historial y el estado de lectura.</p>
-<button class="btn2" onclick="enviarMensaje()">Enviar por WhatsApp y Correo</button> <button class="btn3" onclick="guardarSolo()">Guardar sin enviar</button>
+<button class="btn2" onclick="enviarMensaje()">Enviar por WhatsApp y Correo</button> <button class="btn3" onclick="guardarSolo()">Guardar sin enviar</button> <button class="btn2" onclick="enviarTodosBrevo()">📧 Enviar correo a TODOS con Brevo - 1 clic</button> <p class="small">Este botón sí manda a todos de una vez por correo con Brevo. Si en Grado destino escogiste TODOS, manda a todos los grados. Si escogiste un grado, solo a ese grado.</p> <button class="danger" onclick="limpiarMensaje()">Borrar todo el mensaje y los archivos</button>
 <p class="small" id="envResult"></p></div>
 <div class="card"><h3>Mensaje individual a un padre</h3><p class="small">Vaya a Grados y Secciones, busque la familia y use "Mensaje individual". O escriba aquí el nombre y el número/correo.</p><div class="grid"><div><label>Nombre del padre</label><input id="indNombre"></div><div><label>WhatsApp o Correo del padre</label><input id="indContacto"></div></div><label>Mensaje individual</label><textarea id="indTexto" rows="4"></textarea><button class="btn" onclick="enviarIndividual()">Enviar mensaje individual</button></div>
 </section>
@@ -65,10 +65,10 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <section id="historial" class="hidden"><div class="card"><h2>Historial y Lectura</h2><p class="small">Aquí ve si el mensaje fue enviado y si el padre lo marcó como leído. Marque manualmente el estado.</p><div id="tablaHist"></div><button class="danger" onclick="borrarHistorial()">Borrar historial del ciclo actual</button></div></section>
 <!-- CONFIG -->
 <section id="config" class="hidden">
-<div class="card"><h2>Conexión Supabase (para compartir entre dispositivos) - VERSIÓN 3</h2><p style="background:#ffe9e9;padding:8px;border-radius:8px"><b>Si ves VERSIÓN 3 aquí, ya tienes el archivo nuevo. Si no lo ves, todavía estás en el viejo.</b></p><p>Pegue aquí los datos de su proyecto Supabase. Quedan guardados en este navegador. En Vercel, póngalos como Variables de Entorno SUPABASE_URL y SUPABASE_KEY.</p>
-<label>Supabase URL</label><input id="cfgUrl" placeholder="https://xxxx.supabase.co">
-<label>Supabase Anon Key</label><input id="cfgKey" placeholder="sb_publishable_...">
-<button class="btn" onclick="conectarSupabase()">Conectar y probar</button> <button class="btn2" onclick="forzarSincronizar()">Forzar sincronización ahora</button> <button class="btn3" onclick="usarLocal()">Usar modo local</button>
+<div class="card"><h2>Conexión Supabase (para compartir entre dispositivos)</h2><p>Pegue aquí los datos de su proyecto Supabase. Quedan guardados en este navegador. En Vercel, póngalos como Variables de Entorno SUPABASE_URL y SUPABASE_KEY.</p>
+<p><b>Conexión privada del colegio. Solo la ve el administrador.</b></p><div class="card" style="background:#eef6ff"><h3>Correo masivo con Brevo - solo administrador</h3><label>Tu llave API de Brevo (privada, no la ven los papás)</label><input id="brevoKey" type="password" placeholder="xkeysib-..."><label>Correo remitente verificado en Brevo (ej. liceo.mercantil73@gmail.com)</label><input id="brevoSender" placeholder="liceo.mercantil73@gmail.com"><button class="btn" onclick="guardarBrevo()">Guardar llave de Brevo</button><p class="small">Brevo gratis: 300 correos por día. Si tienes más de 300 papás, la app manda los primeros 300 y te avisa para mandar el resto mañana. Necesitas verificar ese correo en Brevo antes.</p></div><label>Supabase URL (privada)</label><input id="cfgUrl" type="password" placeholder="https://xxxx.supabase.co">
+<label>Supabase Anon Key (privada)</label><input id="cfgKey" type="password" placeholder="sb_publishable_...">
+<button class="btn" onclick="conectarSupabase()">Conectar y probar</button> <button class="btn2" onclick="forzarSincronizar()">Sincronizar ahora</button> <button class="btn2" onclick="forzarSincronizar()">Forzar sincronización ahora</button> <button class="btn3" onclick="usarLocal()">Usar modo local</button>
 <p class="small" id="cfgMsg"></p><p class="small">Conectado: familias, historial y archivos se sincronizan en Supabase (tablas + Storage bucket adjuntos). Si una familia no aparece en otro dispositivo, es porque no se sincronizó. Este archivo corregido ya sincroniza automáticamente.</p></div>
 <div class="card"><h2>Ciclos</h2><p>Ciclo actual: <b>2026-2027</b> • Termina 31 dic 2027 • Reinicia 1 ene 2028. Para ver un ciclo pasado, cambie el selector. Para borrar un ciclo, use el botón con confirmación.</p><label>Ciclo</label><select id="selCiclo"><option>2026-2027</option><option>2027-2028</option><option>2028-2029</option></select><button class="btn3" onclick="cambiarCiclo()">Cambiar ciclo</button> <button class="danger" onclick="borrarCiclo()">Borrar ciclo seleccionado</button></div>
 <div class="card"><button class="btn2" onclick="guardarDatosColegio()">Guardar datos del colegio</button><p class="small">LICEO MERCANTIL • 12 Ave 12-31 Zona 1, Guatemala • Tel 4856-2663 - 2232-4401 • liceo.mercantil73@gmail.com</p></div>
@@ -136,18 +136,44 @@ async function forzarSincronizar(){
   await cargarDesdeSupabase();
   alert(r==='ok' ? 'Sincronizado. Ahora abre el otro dispositivo y recarga la página, ya debe aparecer la familia.' : 'Hubo error: '+r);
 }
+async function forzarSincronizar(){ if(!supabaseClient){ alert('Primero dale Conectar y probar'); return; } const r=await sincronizarTodoASupabase(); await cargarDesdeSupabase(); alert('Sincronizado. Recarga el otro dispositivo y ya debe aparecer.'); }
 function usarLocal(){supabaseClient=null; document.getElementById('statusBadge').textContent='Modo local • Sin Supabase todavía'; document.getElementById('statusBadge').className='badge off';}
+
+function apellidoDe(nombre){ if(!nombre) return ''; nombre=nombre.trim(); if(nombre.includes(',')) return nombre.split(',')[0].trim().toLowerCase(); const p=nombre.split(/\s+/); return p[p.length-1].toLowerCase(); }
+let editandoId=null; let adjuntosLinks=[];
+function editarFamilia(id){ const f=familias.find(x=>String(x.id)===String(id)); if(!f) return; editandoId=id; document.getElementById('selGrado').value=f.grado; document.getElementById('selSeccion').value=f.seccion; document.getElementById('fAlumno').value=f.alumno; document.getElementById('fP1').value=f.padre1; document.getElementById('fC1').value=f.correo1; document.getElementById('fT1').value=f.tel1; document.getElementById('fP2').value=f.padre2||''; document.getElementById('fC2').value=f.correo2||''; document.getElementById('fT2').value=f.tel2||''; document.getElementById('btnAgregarFam').textContent='Guardar cambios del alumno'; alert('Puedes editar a '+f.alumno+' abajo. Dale Guardar cambios cuando termines.'); }
+function cancelarEdicion(){ editandoId=null; ['fAlumno','fP1','fC1','fT1','fP2','fC2','fT2'].forEach(id=>document.getElementById(id).value=''); const b=document.getElementById('btnAgregarFam'); if(b) b.textContent='Agregar familia y sincronizar'; }
+function limpiarMensaje(){ document.getElementById('mAsunto').value=''; document.getElementById('mTexto').value=''; document.getElementById('mFile').value=''; document.getElementById('mAdj').value=''; adjuntosLinks=[]; document.getElementById('adjInfo').textContent=''; document.getElementById('envResult').innerHTML=''; document.getElementById('indNombre').value=''; document.getElementById('indContacto').value=''; document.getElementById('indTexto').value=''; alert('Ya se borró todo: mensaje, Word, PDF, foto y adjuntos.'); }
+function quitarImportado(){ document.getElementById('mFile').value=''; alert('Se quitó el archivo importado.'); }
+function quitarAdjuntos(){ document.getElementById('mAdj').value=''; adjuntosLinks=[]; document.getElementById('adjInfo').textContent='Adjuntos quitados.'; alert('Se quitaron los adjuntos.'); }
+function textoPreparado(){ let t=ENCABEZADO + (document.getElementById('mTexto').value||''); if(adjuntosLinks.length){ t+='\n\nArchivos: \n'; adjuntosLinks.forEach(a=>{ t+=a.nombre+': '+a.url+'\n'; }); } return t; }
+function enviarDesdeGrados(id, canal){
+  const f=familias.find(x=>String(x.id)===String(id)); if(!f) return;
+  if(!document.getElementById('mTexto').value.trim() && !adjuntosLinks.length){ alert('Primero escribe el mensaje en Enviar Mensaje y sube el Word en Adjuntos, después ven a Grados y dale en enviar a este alumno.'); show('enviar'); return; }
+  const texto=textoPreparado(); const asunto=document.getElementById('mAsunto').value||'Mensaje Liceo Mercantil';
+  if(canal==='whatsapp'){
+    if(!f.tel1){ alert('Este papá no tiene WhatsApp guardado.'); return; }
+    window.open('https://wa.me/'+String(f.tel1).replace(/\D/g,'')+'?text='+encodeURIComponent(texto), '_blank');
+  } else {
+    if(!f.correo1){ alert('Este papá no tiene correo guardado.'); return; }
+    window.open('mailto:'+f.correo1+'?subject='+encodeURIComponent(asunto)+'&body='+encodeURIComponent(texto));
+  }
+  guardarMensaje(f.grado, asunto, 'Enviado a '+f.padre1+' por '+canal+': '+texto.substring(0,120));
+}
+
 function renderFamilias(){
   const grado=document.getElementById('selGrado').value; const sec=document.getElementById('selSeccion').value; const q=(document.getElementById('buscador').value||'').toLowerCase();
-  const lista=familias.filter(f=>f.grado===grado && f.seccion===sec && (!q || (f.alumno+f.padre1+f.padre2).toLowerCase().includes(q)));
+  let lista=familias.filter(f=>f.grado===grado && f.seccion===sec && (!q || (f.alumno+f.padre1+f.padre2).toLowerCase().includes(q)));
+  lista.sort((a,b)=> apellidoDe(a.alumno).localeCompare(apellidoDe(b.alumno)) || a.alumno.localeCompare(b.alumno));
   document.getElementById('famTitle').textContent=`Familias - ${grado} - Sección ${sec} (${lista.length})`;
   let h='<table><tr><th>Alumno</th><th>Padre/Madre 1</th><th>Padre/Madre 2</th><th>Acciones</th></tr>';
-  lista.forEach(f=>{h+=`<tr><td>${f.alumno}</td><td>${f.padre1}<br><span class="small">${f.correo1||''}<br>${f.tel1||''}</span></td><td>${f.padre2||''}<br><span class="small">${f.correo2||''}<br>${f.tel2||''}</span></td><td><button class="btn" onclick="mensajeIndividual('${f.id}')">Mensaje individual</button> <button class="danger" onclick="eliminarFamilia('${f.id}')">Eliminar</button></td></tr>`;});
+  lista.forEach(f=>{h+=`<tr><td>${f.alumno}</td><td>${f.padre1}<br><span class="small">${f.correo1||''}<br>${f.tel1||''}</span></td><td>${f.padre2||''}<br><span class="small">${f.correo2||''}<br>${f.tel2||''}</span></td><td><button class="btn" onclick="mensajeIndividual('${f.id}')">Mensaje individual</button> <button class="btn3" onclick="editarFamilia('${f.id}')">Editar</button> <br><button class="btn2" onclick="enviarDesdeGrados('${f.id}','whatsapp')">WhatsApp a este papa</button> <button class="btn" onclick="enviarDesdeGrados('${f.id}','correo')">Correo a este papa</button> <button class="danger" onclick="eliminarFamilia('${f.id}')">Eliminar</button></td></tr>`;});
   h+='</table>'; if(!lista.length) h+='<p>No hay familias en este grado/sección.</p>'; document.getElementById('tablaFam').innerHTML=h;
 }
 async function addFamilia(){
-  const f={id:'local-'+Date.now(),grado:document.getElementById('selGrado').value,seccion:document.getElementById('selSeccion').value,alumno:document.getElementById('fAlumno').value.trim(),padre1:document.getElementById('fP1').value.trim(),correo1:document.getElementById('fC1').value.trim(),tel1:document.getElementById('fT1').value.trim(),padre2:document.getElementById('fP2').value.trim(),correo2:document.getElementById('fC2').value.trim(),tel2:document.getElementById('fT2').value.trim()};
+  const f={id: editandoId || 'local-'+Date.now(),grado:document.getElementById('selGrado').value,seccion:document.getElementById('selSeccion').value,alumno:document.getElementById('fAlumno').value.trim(),padre1:document.getElementById('fP1').value.trim(),correo1:document.getElementById('fC1').value.trim(),tel1:document.getElementById('fT1').value.trim(),padre2:document.getElementById('fP2').value.trim(),correo2:document.getElementById('fC2').value.trim(),tel2:document.getElementById('fT2').value.trim()};
   if(!f.alumno||!f.padre1){alert('Escriba al menos alumno y padre 1');return;}
+  if(editandoId){ const idx=familias.findIndex(x=>String(x.id)===String(editandoId)); if(idx>=0) familias[idx]=f; editandoId=null; const b=document.getElementById('btnAgregarFam'); if(b) b.textContent='Agregar familia y sincronizar'; saveLocal(); if(supabaseClient) await sincronizarTodoASupabase(); ['fAlumno','fP1','fC1','fT1','fP2','fC2','fT2'].forEach(id=>document.getElementById(id).value=''); renderFamilias(); alert('Alumno editado y sincronizado.'); return; }
   familias.push(f); saveLocal(); if(supabaseClient) await sincronizarTodoASupabase();
   ['fAlumno','fP1','fC1','fT1','fP2','fC2','fT2'].forEach(id=>document.getElementById(id).value=''); renderFamilias(); alert('Familia agregada y sincronizada. Ya aparece en otros dispositivos conectados.');
 }
@@ -156,11 +182,61 @@ function exportCSV(){ const grado=document.getElementById('selGrado').value; con
 function downloadPlantilla(){ let csv='Alumno,Padre1,Correo1,Telefono1,Padre2,Correo2,Telefono2\nEjemplo,Padre Ejemplo,correo@ejemplo.com,50200000000,,,\n'; const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='plantilla_familias.csv'; a.click();}
 async function importExcel(e){ const file=e.target.files[0]; if(!file)return; const data=await file.arrayBuffer(); const wb=XLSX.read(data); const ws=wb.Sheets[wb.SheetNames[0]]; const rows=XLSX.utils.sheet_to_json(ws,{header:1}); const grado=document.getElementById('selGrado').value; const sec=document.getElementById('selSeccion').value; let n=0; rows.slice(1).forEach(r=>{ if(!r[0])return; familias.push({id:'local-'+Date.now()+'-'+n,grado,seccion:sec,alumno:r[0]||'',padre1:r[1]||'',correo1:r[2]||'',tel1:String(r[3]||''),padre2:r[4]||'',correo2:r[5]||'',tel2:String(r[6]||'')}); n++; }); saveLocal(); if(supabaseClient) await sincronizarTodoASupabase(); renderFamilias(); alert('Importadas '+n+' familias y sincronizadas.'); }
 function importMensaje(e){ const file=e.target.files[0]; if(!file)return; const r=new FileReader(); r.onload=()=>{document.getElementById('mTexto').value=r.result;}; if(file.type.includes('image')||file.name.endsWith('.pdf')||file.name.endsWith('.docx')||file.name.endsWith('.doc')){ document.getElementById('mTexto').value+='\n[Archivo importado: '+file.name+' - se adjuntará al mensaje]'; } else r.readAsText(file); }
-function checkAdjuntos(){ const files=document.getElementById('mAdj').files; let total=0; for(const f of files) total+=f.size; document.getElementById('adjInfo').textContent=`${files.length} archivos, ${(total/1024/1024).toFixed(1)} MB. Máx 5, 10 MB c/u, 20 MB total.`; if(files.length>5) alert('Máximo 5 archivos'); if(total>20*1024*1024) alert('Supera 20 MB total'); }
+async function checkAdjuntos(){ const files=document.getElementById('mAdj').files; let total=0; for(const f of files) total+=f.size; if(files.length>5){alert('Máximo 5 archivos');return;} if(total>20*1024*1024){alert('Supera 20 MB total');return;} adjuntosLinks=[]; if(!supabaseClient){ document.getElementById('adjInfo').textContent='Conecta Supabase primero para subir archivos. Sin conexión, el archivo NO se enviará.'; return; } document.getElementById('adjInfo').textContent='Subiendo archivos...'; for(const f of files){ const nombre=Date.now()+'-'+f.name.replace(/[^a-zA-Z0-9.-]/g,'_'); const {error}=await supabaseClient.storage.from('adjuntos').upload(nombre, f, {upsert:true}); if(error){ document.getElementById('adjInfo').textContent='Error al subir '+f.name+': '+error.message; continue; } const {data}=supabaseClient.storage.from('adjuntos').getPublicUrl(nombre); adjuntosLinks.push({nombre:f.name, url:data.publicUrl}); } if(adjuntosLinks.length){ let txt='Archivos listos:\n'; adjuntosLinks.forEach(a=>{ txt+=a.nombre+': '+a.url+'\n'; }); document.getElementById('adjInfo').textContent=txt; alert('Archivo subido. El link ya va a salir en el WhatsApp y en el correo.'); } }
 function mensajeIndividual(id){ const f=familias.find(x=>String(x.id)===String(id)); if(!f)return; show('enviar'); document.getElementById('indNombre').value=f.padre1; document.getElementById('indContacto').value=f.tel1||f.correo1; document.getElementById('indTexto').value=ENCABEZADO+'Estimado padre de '+f.alumno+', '; }
 function enviarIndividual(){ const nombre=document.getElementById('indNombre').value; const contacto=document.getElementById('indContacto').value; const texto=document.getElementById('indTexto').value; if(!texto){alert('Escriba el mensaje');return;} if(contacto.includes('@')) window.open('mailto:'+contacto+'?subject='+encodeURIComponent('Mensaje Liceo Mercantil')+'&body='+encodeURIComponent(texto)); else if(contacto) window.open('https://wa.me/'+contacto.replace(/\D/g,'')+'?text='+encodeURIComponent(texto)); guardarMensaje('Individual','Mensaje individual a '+nombre,texto); }
 async function guardarMensaje(grado,asunto,texto){ const m={id:'m-'+Date.now(),grado,asunto,texto,fecha:new Date().toLocaleString(),estado:'Enviado',seccion:document.getElementById('envSec')?.value||'A'}; mensajes.push(m); saveLocal(); if(supabaseClient){ await supabaseClient.from('mensajes').insert({asunto,texto,grado,seccion:m.seccion,ciclo:cicloActual,estado:'Enviado'}); } renderHistorial(); }
-function enviarMensaje(){ const texto=ENCABEZADO+document.getElementById('mTexto').value; const asunto=document.getElementById('mAsunto').value||'Mensaje del colegio'; const grado=document.getElementById('envGrado').value; if(!document.getElementById('mTexto').value.trim()){alert('Escriba el mensaje');return;} const dest=familias.filter(f=>grado==='TODOS'||f.grado===grado); if(!dest.length){alert('No hay familias en ese grado.');return;} let abiertos=0; dest.slice(0,5).forEach(f=>{ if(f.tel1) window.open('https://wa.me/'+String(f.tel1).replace(/\D/g,'')+'?text='+encodeURIComponent(texto)); abiertos++; }); document.getElementById('envResult').textContent=`Se preparó el mensaje para ${dest.length} familias. Se abrieron ${abiertos} ventanas de WhatsApp (el navegador limita cuántas se abren a la vez). Use Exportar CSV para enviar por correo masivo.`; guardarMensaje(grado,asunto,texto); alert('Mensaje guardado en historial y sincronizado.'); }
+
+async function enviarTodosBrevo(){
+  const apiKey = (localStorage.getItem('cc_brevo_key')||'').trim();
+  const remitente = (localStorage.getItem('cc_brevo_sender')||'').trim() || 'liceo.mercantil73@gmail.com';
+  if(!apiKey){ alert('Primero pon tu llave de Brevo en Configuración. Sin esa llave, la app no puede mandar a todos.'); show('config'); return; }
+  if(!document.getElementById('mTexto').value.trim() && !adjuntosLinks.length){ alert('Primero escribe el mensaje en Enviar Mensaje.'); return; }
+  if(!familias.length){ alert('No hay familias cargadas.'); return; }
+  // Si es TODOS, todos los grados. Si escogiste un grado, solo ese grado.
+  const grado=document.getElementById('envGrado').value;
+  const dest = (grado==='TODOS') ? familias.slice() : familias.filter(f=>f.grado===grado);
+  const conCorreo = dest.filter(f=>f.correo1 && f.correo1.includes('@'));
+  if(!conCorreo.length){ alert('Ninguna familia de ese grado tiene correo guardado.'); return; }
+  if(conCorreo.length>300 && !confirm('Brevo gratis solo deja 300 correos por día. Tienes '+conCorreo.length+' correos. ¿Quieres mandar los primeros 300 hoy y el resto mañana?')) return;
+  const lista = conCorreo.slice(0,300);
+  if(!confirm('Vas a mandar este mensaje por correo a '+lista.length+' papás de una sola vez con Brevo. ¿Lo mando?')) return;
+  document.getElementById('envResult').innerHTML='Enviando por Brevo a '+lista.length+' papás... no cierres la página.';
+  let ok=0, fail=0;
+  const texto = textoPreparado();
+  const asunto = document.getElementById('mAsunto').value||'Mensaje Liceo Mercantil';
+  // Brevo deja mandar de 1 en 1 por API, pero la app lo hace sola, tú solo le das 1 clic
+  for(const f of lista){
+    try{
+      const r = await fetch('https://api.brevo.com/v3/smtp/email', { method:'POST', headers:{'api-key':apiKey,'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify({sender:{email:remitente, name:'Liceo Mercantil'}, to:[{email:f.correo1, name:f.padre1}], subject:asunto, htmlContent: texto.replace(/\n/g,'<br>')+'<br><br>Alumno: '+f.alumno}) });
+      if(r.ok) ok++; else fail++;
+      await new Promise(res=>setTimeout(res,120));
+    }catch(e){ fail++; }
+  }
+  document.getElementById('envResult').innerHTML='Listo. Brevo mandó a '+ok+' papás. Fallaron '+fail+'. Si fallaron, revisa que el correo esté bien escrito.';
+  guardarMensaje(grado, asunto, texto);
+  alert('Listo. Se mandó por correo a '+ok+' papás con Brevo, con un solo clic.');
+}
+function guardarBrevo(){
+  localStorage.setItem('cc_brevo_key', document.getElementById('brevoKey').value.trim());
+  localStorage.setItem('cc_brevo_sender', document.getElementById('brevoSender').value.trim());
+  alert('Llave de Brevo guardada solo en este dispositivo. No la ven los papás.');
+}
+
+function enviarMensaje(){
+  document.getElementById('indNombre').value=''; document.getElementById('indContacto').value=''; document.getElementById('indTexto').value='';
+  let texto=textoPreparado(); const asunto=document.getElementById('mAsunto').value||'Mensaje del colegio'; const grado=document.getElementById('envGrado').value;
+  if(!document.getElementById('mTexto').value.trim() && !adjuntosLinks.length){alert('Escriba el mensaje o suba un adjunto');return;}
+  const dest=familias.filter(f=>grado==='TODOS'||f.grado===grado);
+  if(!dest.length){alert('No hay familias en ese grado.');return;}
+  let h='<div style="background:#e6f4ea;padding:12px;border-radius:10px"><b>Listo para enviar a '+dest.length+' familias.</b><br>WhatsApp no deja abrir a todos en un solo clic, por eso dale clic UNO POR UNO, por WhatsApp o por Correo:<br>';
+  dest.forEach(f=>{
+    const wlink='https://wa.me/'+String(f.tel1||'').replace(/\D/g,'')+'?text='+encodeURIComponent(texto);
+    const mlink='mailto:'+(f.correo1||'')+'?subject='+encodeURIComponent(asunto)+'&body='+encodeURIComponent(texto);
+    h+='<div style="margin:8px 0">'+f.alumno+' - '+f.padre1+' <button class="btn2" onclick="window.open(\''+wlink+'\',\'_blank\')">WhatsApp</button> <button class="btn" onclick="window.open(\''+mlink+'\')">Correo</button></div>';
+  });
+  h+='</div>'; document.getElementById('envResult').innerHTML=h; guardarMensaje(grado,asunto,texto);
+}
 function guardarSolo(){ const texto=document.getElementById('mTexto').value; guardarMensaje(document.getElementById('envGrado').value,document.getElementById('mAsunto').value||'Borrador',texto); alert('Guardado.'); }
 function renderHistorial(){ let h='<table><tr><th>Fecha</th><th>Grado</th><th>Asunto</th><th>Estado</th><th>Acción</th></tr>'; mensajes.forEach(m=>{h+=`<tr><td>${m.fecha}</td><td>${m.grado}</td><td>${m.asunto}</td><td>${m.estado}</td><td><button class="btn3" onclick="marcarLeido('${m.id}')">Marcar como leído</button></td></tr>`;}); h+='</table>'; if(!mensajes.length) h+='<p>No hay mensajes en este ciclo.</p>'; document.getElementById('tablaHist').innerHTML=h; }
 function marcarLeido(id){ const m=mensajes.find(x=>String(x.id)===String(id)); if(m){m.estado='Leído'; saveLocal(); renderHistorial();} }
@@ -169,5 +245,5 @@ function cambiarCiclo(){ cicloActual=document.getElementById('selCiclo').value; 
 function borrarCiclo(){ if(!confirm('¿Borrar todos los datos del ciclo '+document.getElementById('selCiclo').value+'?'))return; familias=[]; mensajes=[]; saveLocal(); alert('Ciclo borrado.'); }
 function guardarDatosColegio(){ alert('Datos del colegio guardados: LICEO MERCANTIL'); }
 // Auto-conectar si ya hay llaves
-window.onload=async()=>{ llenarSelects(); updateKPIs(); const u=localStorage.getItem('cc_supabase_url'); const k=localStorage.getItem('cc_supabase_key'); if(u&&k){ document.getElementById('cfgUrl').value=u; document.getElementById('cfgKey').value=k; try{ supabaseClient=window.supabase.createClient(u,k); document.getElementById('statusBadge').textContent='Conectado a Supabase ✓'; document.getElementById('statusBadge').className='badge'; await cargarDesdeSupabase(); }catch(e){} } };
+window.onload=async()=>{ const bk=localStorage.getItem('cc_brevo_key'); if(bk) document.getElementById('brevoKey').value=bk; const bs=localStorage.getItem('cc_brevo_sender'); if(bs) document.getElementById('brevoSender').value=bs; if(location.search.includes('admin=1')){ document.getElementById('btnConfig').classList.remove('hidden'); } llenarSelects(); updateKPIs(); const u=localStorage.getItem('cc_supabase_url'); const k=localStorage.getItem('cc_supabase_key'); if(u&&k){ document.getElementById('cfgUrl').value=u; document.getElementById('cfgKey').value=k; try{ supabaseClient=window.supabase.createClient(u,k); document.getElementById('statusBadge').textContent='Conectado a Supabase ✓'; document.getElementById('statusBadge').className='badge'; await cargarDesdeSupabase(); }catch(e){} } };
 </script></body></html>
