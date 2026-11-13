@@ -57,7 +57,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 <label>Mensaje</label><textarea id="mTexto" rows="6" placeholder="Escriba el mensaje aquí... Se agregará automáticamente el encabezado del colegio."></textarea>
 <div class="grid"><div><label>Importar mensaje desde archivo <button class="btn3" onclick="quitarImportado()">Quitar</button></label><input type="file" id="mFile" accept=".txt,.doc,.docx,.pdf,.jpg,.jpeg,.png" onchange="importMensaje(event)"></div><div><label>Adjuntos <button class="btn3" onclick="quitarAdjuntos()">Quitar adjuntos</button></label><input type="file" id="mAdj" multiple onchange="checkAdjuntos()"><p class="small" id="adjInfo"></p></div></div>
 <p class="small">Al enviar, se abrirá WhatsApp y correo listos para cada familia. El sistema guardará el historial y el estado de lectura.</p>
-<button class="btn2" onclick="enviarMensaje()">Enviar por WhatsApp y Correo</button> <button class="btn3" onclick="guardarSolo()">Guardar sin enviar</button> <button class="btn2" onclick="enviarTodosBrevo()">📧 Enviar correo a TODOS con Brevo - 1 clic</button> <p class="small">Este botón sí manda a todos de una vez por correo con Brevo. Si en Grado destino escogiste TODOS, manda a todos los grados. Si escogiste un grado, solo a ese grado.</p> <button class="danger" onclick="limpiarMensaje()">Borrar todo el mensaje y los archivos</button>
+<button class="btn2" onclick="enviarMensaje()">Enviar por WhatsApp y Correo</button> <button class="btn3" onclick="guardarSolo()">Guardar sin enviar</button> <button class="btn2" onclick="enviarTodosBrevo()">📧 Enviar correo a TODOS con Brevo - 1 clic</button> <button class="btn" onclick="enviarPendientesBrevo()">📧 Enviar los que faltan (del 301 en adelante)</button> <p class="small">Este botón sí manda a todos de una vez por correo con Brevo. Si en Grado destino escogiste TODOS, manda a todos los grados. Si escogiste un grado, solo a ese grado.</p> <button class="danger" onclick="limpiarMensaje()">Borrar todo el mensaje y los archivos</button>
 <p class="small" id="envResult"></p></div>
 <div class="card"><h3>Mensaje individual a un padre</h3><p class="small">Vaya a Grados y Secciones, busque la familia y use "Mensaje individual". O escriba aquí el nombre y el número/correo.</p><div class="grid"><div><label>Nombre del padre</label><input id="indNombre"></div><div><label>WhatsApp o Correo del padre</label><input id="indContacto"></div></div><label>Mensaje individual</label><textarea id="indTexto" rows="4"></textarea><button class="btn" onclick="enviarIndividual()">Enviar mensaje individual</button></div>
 </section>
@@ -190,33 +190,68 @@ async function guardarMensaje(grado,asunto,texto){ const m={id:'m-'+Date.now(),g
 async function enviarTodosBrevo(){
   const apiKey = (localStorage.getItem('cc_brevo_key')||'').trim();
   const remitente = (localStorage.getItem('cc_brevo_sender')||'').trim() || 'liceo.mercantil73@gmail.com';
-  if(!apiKey){ alert('Primero pon tu llave de Brevo en Configuración. Sin esa llave, la app no puede mandar a todos.'); show('config'); return; }
+  if(!apiKey){ alert('Primero pon tu llave de Brevo en Configuración.'); show('config'); return; }
   if(!document.getElementById('mTexto').value.trim() && !adjuntosLinks.length){ alert('Primero escribe el mensaje en Enviar Mensaje.'); return; }
   if(!familias.length){ alert('No hay familias cargadas.'); return; }
-  // Si es TODOS, todos los grados. Si escogiste un grado, solo ese grado.
   const grado=document.getElementById('envGrado').value;
-  const dest = (grado==='TODOS') ? familias.slice() : familias.filter(f=>f.grado===grado);
+  // Ordenado por grado y apellido para que siempre sea el mismo orden y sepas quién es el 301
+  let dest = (grado==='TODOS') ? familias.slice() : familias.filter(f=>f.grado===grado);
+  dest.sort((a,b)=> (a.grado||'').localeCompare(b.grado||'') || apellidoDe(a.alumno).localeCompare(apellidoDe(b.alumno)) || a.alumno.localeCompare(b.alumno));
   const conCorreo = dest.filter(f=>f.correo1 && f.correo1.includes('@'));
-  if(!conCorreo.length){ alert('Ninguna familia de ese grado tiene correo guardado.'); return; }
-  if(conCorreo.length>300 && !confirm('Brevo gratis solo deja 300 correos por día. Tienes '+conCorreo.length+' correos. ¿Quieres mandar los primeros 300 hoy y el resto mañana?')) return;
+  if(!conCorreo.length){ alert('Ninguna familia tiene correo guardado.'); return; }
+  // Mostrar lista numerada antes de mandar para que veas quién es el 301
+  let listaHtml='<div style="background:#fff8e1;padding:12px;border-radius:10px;max-height:300px;overflow:auto"><b>Lista numerada - así se van a mandar, en este orden:</b><br>';
+  conCorreo.forEach((f,i)=>{ listaHtml+=(i+1)+'. '+f.alumno+' - '+f.grado+' '+f.seccion+' - Papá: '+f.padre1+' - '+f.correo1+'<br>'; });
+  listaHtml+='</div>';
+  document.getElementById('envResult').innerHTML=listaHtml+'<p><b>¿Ves quién es el 301?</b> Baja en esa lista, el número 301 es el primero que falta si son más de 300.</p>';
+  if(conCorreo.length>300 && !confirm('Tienes '+conCorreo.length+' papás. Brevo gratis solo deja 300 por día. Voy a mandar del 1 al 300 hoy. Los del 301 al '+conCorreo.length+' quedan para mañana. ¿Lo mando?')) return;
+  if(conCorreo.length<=300 && !confirm('Vas a mandar este mensaje por correo a '+conCorreo.length+' papás de una sola vez con Brevo. ¿Lo mando?')) return;
   const lista = conCorreo.slice(0,300);
-  if(!confirm('Vas a mandar este mensaje por correo a '+lista.length+' papás de una sola vez con Brevo. ¿Lo mando?')) return;
-  document.getElementById('envResult').innerHTML='Enviando por Brevo a '+lista.length+' papás... no cierres la página.';
-  let ok=0, fail=0;
-  const texto = textoPreparado();
-  const asunto = document.getElementById('mAsunto').value||'Mensaje Liceo Mercantil';
-  // Brevo deja mandar de 1 en 1 por API, pero la app lo hace sola, tú solo le das 1 clic
-  for(const f of lista){
+  const restantes = conCorreo.slice(300);
+  document.getElementById('envResult').innerHTML='Enviando por Brevo del 1 al '+lista.length+'... no cierres la página.';
+  let ok=0, fail=0; const fallidos=[];
+  const texto = textoPreparado(); const asunto = document.getElementById('mAsunto').value||'Mensaje Liceo Mercantil';
+  for(let idx=0; idx<lista.length; idx++){
+    const f=lista[idx];
     try{
       const r = await fetch('https://api.brevo.com/v3/smtp/email', { method:'POST', headers:{'api-key':apiKey,'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify({sender:{email:remitente, name:'Liceo Mercantil'}, to:[{email:f.correo1, name:f.padre1}], subject:asunto, htmlContent: texto.replace(/\n/g,'<br>')+'<br><br>Alumno: '+f.alumno}) });
-      if(r.ok) ok++; else fail++;
+      if(r.ok) ok++; else { fail++; fallidos.push((idx+1)+'. '+f.alumno+' - '+f.correo1); }
       await new Promise(res=>setTimeout(res,120));
-    }catch(e){ fail++; }
+    }catch(e){ fail++; fallidos.push((idx+1)+'. '+f.alumno+' - '+f.correo1); }
   }
-  document.getElementById('envResult').innerHTML='Listo. Brevo mandó a '+ok+' papás. Fallaron '+fail+'. Si fallaron, revisa que el correo esté bien escrito.';
+  let resHtml='<div style="background:#e6f4ea;padding:12px;border-radius:10px"><b>Listo. Hoy se mandó del 1 al '+ok+'.</b><br>Fallaron '+fail+'.';
+  if(fallidos.length){ resHtml+='<br><b>Estos fallaron, revisa su correo:</b><br>'+fallidos.join('<br>'); }
+  if(restantes.length){
+    resHtml+='<br><br><b>⚠️ Faltan estos para mañana, del 301 al '+conCorreo.length+':</b><br>';
+    restantes.forEach((f,i)=>{ resHtml+=(300+i+1)+'. '+f.alumno+' - '+f.grado+' '+f.seccion+' - '+f.padre1+' - '+f.correo1+'<br>'; });
+    resHtml+='<br>Ya guardé la lista de los que faltan. Mañana solo dale en "Enviar los que faltan" y se mandan solos.';
+    localStorage.setItem('cc_brevo_pendientes', JSON.stringify(restantes));
+  } else {
+    resHtml+='<br>No falta nadie. Ya se mandó a todos.';
+    localStorage.removeItem('cc_brevo_pendientes');
+  }
+  resHtml+='</div>';
+  document.getElementById('envResult').innerHTML=resHtml;
   guardarMensaje(grado, asunto, texto);
-  alert('Listo. Se mandó por correo a '+ok+' papás con Brevo, con un solo clic.');
+  alert('Listo. Hoy se mandó del 1 al '+ok+'. '+(restantes.length? 'Faltan '+restantes.length+' para mañana, del 301 en adelante. Ya quedaron guardados con su número y nombre.':'Ya se mandó a todos.'));
 }
+async function enviarPendientesBrevo(){
+  const pend=JSON.parse(localStorage.getItem('cc_brevo_pendientes')||'[]');
+  if(!pend.length){ alert('No hay pendientes. Ya se mandó a todos.'); return; }
+  if(!confirm('Vas a mandar a los '+pend.length+' que faltaban, del 301 en adelante. ¿Lo mando?')) return;
+  // Reusar la misma lógica pero con la lista guardada
+  const apiKey=(localStorage.getItem('cc_brevo_key')||'').trim(); const remitente=(localStorage.getItem('cc_brevo_sender')||'').trim()||'liceo.mercantil73@gmail.com';
+  const texto=textoPreparado(); const asunto=document.getElementById('mAsunto').value||'Mensaje Liceo Mercantil';
+  let ok=0, fail=0;
+  document.getElementById('envResult').innerHTML='Enviando a los que faltaban...';
+  for(const f of pend){
+    try{ const r=await fetch('https://api.brevo.com/v3/smtp/email',{method:'POST',headers:{'api-key':apiKey,'Content-Type':'application/json'},body:JSON.stringify({sender:{email:remitente,name:'Liceo Mercantil'},to:[{email:f.correo1,name:f.padre1}],subject:asunto,htmlContent:texto.replace(/\n/g,'<br>')+'<br><br>Alumno: '+f.alumno})}); if(r.ok) ok++; else fail++; await new Promise(res=>setTimeout(res,120)); }catch(e){ fail++; }
+  }
+  localStorage.removeItem('cc_brevo_pendientes');
+  document.getElementById('envResult').innerHTML='Listo. Se mandaron los '+ok+' que faltaban. Fallaron '+fail+'. Ya no falta nadie.';
+  alert('Listo. Ya se mandaron los que faltaban. Ya están todos.');
+}
+
 function guardarBrevo(){
   localStorage.setItem('cc_brevo_key', document.getElementById('brevoKey').value.trim());
   localStorage.setItem('cc_brevo_sender', document.getElementById('brevoSender').value.trim());
