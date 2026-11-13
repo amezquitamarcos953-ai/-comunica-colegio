@@ -18,13 +18,25 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 @media(max-width:700px){.kpis,.grid,.grid3{grid-template-columns:1fr}}
 </style></head>
 <body>
+<div id="loginOverlay" style="position:fixed;inset:0;background:#0b2f52;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:16px;padding:28px;max-width:380px;width:100%;text-align:center">
+    <h1 style="margin:0;color:#0b2f52">LICEO MERCANTIL</h1>
+    <p style="color:#555">ComunicaCole — Ingresa tu contraseña</p>
+    <label style="display:block;text-align:left;font-size:13px;font-weight:700">Contraseña</label>
+    <input id="loginPass" type="password" placeholder="Escribe tu contraseña" onkeydown="if(event.key==='Enter') entrarApp()">
+    <button class="btn2" style="width:100%;padding:12px;font-size:16px" onclick="entrarApp()">Entrar</button>
+    <p class="small" id="loginError" style="color:#c0392b"></p>
+    <p class="small">Directora y Administrador usan el mismo link, cada quien con su contraseña.</p>
+  </div>
+</div>
+
 <header><h1>LICEO MERCANTIL</h1><p>12 AVE 12-31 ZONA 1 • GUATEMALA | Tel. 4856-2663 - 2232-4401 | liceo.mercantil73@gmail.com<br>Ciclo activo: <span id="hdrCiclo">2026-2027</span> • Termina 31 de diciembre de 2027 • Reinicia 1 de enero de 2028</p></header>
 <nav>
 <button class="btn" onclick="show('inicio')">Inicio</button>
 <button class="btn" onclick="show('grados')">Grados y Secciones</button>
 <button class="btn" onclick="show('enviar')">Enviar Mensaje</button>
-<button class="btn" onclick="show('historial')">Historial y Lectura</button>
-<button class="btn" onclick="show('config')">Configuración / Supabase / Vercel</button>
+<button class="btn" onclick="show('historial')">Historial y Lectura</button><button class="btn3" onclick="salirApp()">Salir</button>
+<button class="btn" id="btnConfig" onclick="show('config')">Configuración / Supabase / Vercel</button>
 <span id="statusBadge" class="badge off">Modo local • Sin Supabase todavía</span>
 </nav>
 <div class="wrap">
@@ -95,7 +107,7 @@ function keyMsg(c){ return 'cc_mensajes_'+c; }
 let familias=JSON.parse(localStorage.getItem(keyFam(cicloActual))||'[]');
 let mensajes=JSON.parse(localStorage.getItem(keyMsg(cicloActual))||'[]');
 
-function show(id){['inicio','grados','enviar','historial','config'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==id)); if(id==='grados')renderFamilias(); if(id==='historial')renderHistorial(); updateKPIs();}
+function show(id){ if(id==='config' && rolActual!=='admin'){ alert('Esta parte es solo para el Administrador.'); return; } if(rolActual==='' && id!=='inicio'){ document.getElementById('loginOverlay').style.display='flex'; return; }['inicio','grados','enviar','historial','config'].forEach(x=>document.getElementById(x).classList.toggle('hidden',x!==id)); if(id==='grados')renderFamilias(); if(id==='historial')renderHistorial(); updateKPIs();}
 function updateKPIs(){document.getElementById('kFam').textContent=familias.length; document.getElementById('kAlu').textContent=familias.length; document.getElementById('kMsg').textContent=mensajes.length;}
 function saveLocal(){localStorage.setItem(keyFam(cicloActual),JSON.stringify(familias)); localStorage.setItem(keyMsg(cicloActual),JSON.stringify(mensajes)); localStorage.setItem('cc_ciclo_vista',cicloActual); updateKPIs(); updateCicloUI();}
 function updateCicloUI(){ const h=document.getElementById('hdrCiclo'); if(h) h.textContent=cicloActivo; const v=document.getElementById('vistaCicloLabel'); if(v) v.textContent=cicloActual; const a=document.getElementById('cicloActivoLabel'); if(a) a.textContent=cicloActivo; const n=document.getElementById('vistaCicloNota'); if(n) n.textContent = cicloActual===cicloActivo ? '— Ciclo activo, puedes agregar y enviar.' : '— Estás viendo un ciclo antiguo, también puedes editar todo aquí.'; const ci=document.getElementById('cicloInfo'); if(ci) ci.textContent='Viendo: '+cicloActual+' | Activo: '+cicloActivo+' | Familias: '+familias.length+' | Mensajes: '+mensajes.length; const sel=document.getElementById('selCiclo'); if(sel) sel.value=cicloActual; }
@@ -210,5 +222,31 @@ async function suscribirTiempoReal(){
     .subscribe();
 }
 
-window.onload=async()=>{ cicloActual=cicloActivo; cicloVista=cicloActivo; familias=JSON.parse(localStorage.getItem(keyFam(cicloActual))||'[]'); mensajes=JSON.parse(localStorage.getItem(keyMsg(cicloActual))||'[]'); llenarSelects(); updateKPIs(); updateCicloUI(); const u=localStorage.getItem('cc_supabase_url'); const k=localStorage.getItem('cc_supabase_key'); if(u&&k){ document.getElementById('cfgUrl').value=u; document.getElementById('cfgKey').value=k; try{ supabaseClient=window.supabase.createClient(u,k); document.getElementById('statusBadge').textContent='Conectado a Supabase ✓'; document.getElementById('statusBadge').className='badge'; await cargarDesdeSupabase(); await suscribirTiempoReal(); }catch(e){} } };
+
+const PASS_DIRECTORA='Liceo2026';
+const PASS_ADMIN='Admin2026';
+let rolActual=sessionStorage.getItem('cc_rol')||'';
+function aplicarRol(){
+  const esAdmin = rolActual==='admin';
+  const btn=document.getElementById('btnConfig'); if(btn) btn.style.display = esAdmin ? '' : 'none';
+  const cfg=document.getElementById('config'); if(cfg && !esAdmin && document.getElementById('loginOverlay').style.display==='none'){ /* directora no ve config */ }
+  const cfgSec=document.getElementById('config'); if(cfgSec) cfgSec.style.display = esAdmin ? '' : 'none';
+  const badge=document.getElementById('statusBadge'); if(badge) badge.style.display = esAdmin ? '' : 'none';
+  // Si la directora intenta abrir config, no dejar
+}
+function entrarApp(){
+  const p=document.getElementById('loginPass').value.trim();
+  if(p===PASS_DIRECTORA){ rolActual='directora'; }
+  else if(p===PASS_ADMIN){ rolActual='admin'; }
+  else { document.getElementById('loginError').textContent='Contraseña incorrecta. Intenta de nuevo.'; return; }
+  sessionStorage.setItem('cc_rol', rolActual);
+  document.getElementById('loginOverlay').style.display='none';
+  aplicarRol();
+  // Auto-conectar para ambos roles sin mostrar llaves
+  if(!localStorage.getItem('cc_supabase_url')){ localStorage.setItem('cc_supabase_url','https://ufhcwtpweivvmiipiedc.supabase.co'); localStorage.setItem('cc_supabase_key','sb_publishable_qjRqv8Wi_Dr9--LQV7zk2g_JLsKy0lt'); }
+  show('inicio');
+}
+function salirApp(){ sessionStorage.removeItem('cc_rol'); rolActual=''; document.getElementById('loginPass').value=''; document.getElementById('loginOverlay').style.display='flex'; }
+
+window.onload=async()=>{ if(!rolActual){ document.getElementById('loginOverlay').style.display='flex'; } else { document.getElementById('loginOverlay').style.display='none'; aplicarRol(); } cicloActual=cicloActivo; cicloVista=cicloActivo; familias=JSON.parse(localStorage.getItem(keyFam(cicloActual))||'[]'); mensajes=JSON.parse(localStorage.getItem(keyMsg(cicloActual))||'[]'); llenarSelects(); updateKPIs(); updateCicloUI(); const u=localStorage.getItem('cc_supabase_url'); const k=localStorage.getItem('cc_supabase_key'); if(u&&k){ document.getElementById('cfgUrl').value=u; document.getElementById('cfgKey').value=k; try{ supabaseClient=window.supabase.createClient(u,k); document.getElementById('statusBadge').textContent='Conectado a Supabase ✓'; document.getElementById('statusBadge').className='badge'; await cargarDesdeSupabase(); await suscribirTiempoReal(); }catch(e){} } };
 </script></body></html>
