@@ -235,6 +235,7 @@ function aplicarRol(){
   const btn=document.getElementById('btnConfig'); if(btn) btn.style.display = esAdmin ? '' : 'none';
   const cfg=document.getElementById('config'); if(cfg && !esAdmin && document.getElementById('loginOverlay').style.display==='none'){ /* directora no ve config */ }
   const cfgSec=document.getElementById('config'); if(cfgSec) cfgSec.style.display = esAdmin ? '' : 'none';
+  const banner=document.getElementById('bannerCiclo'); if(banner) banner.style.display = esAdmin ? '' : 'none';
   const btnImp=document.getElementById('btnImportExcel'); if(btnImp) btnImp.style.display = esAdmin ? '' : 'none';
   const ciclos=document.getElementById('ciclosCard'); if(ciclos) ciclos.style.display = esAdmin ? '' : 'none';
   const badge=document.getElementById('statusBadge'); if(badge) badge.style.display = esAdmin ? '' : 'none';
